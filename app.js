@@ -20,13 +20,9 @@ const grid = GridStack.init({
 const savedLayout = JSON.parse(localStorage.getItem("layout"));
 if (savedLayout) {
     grid.load(savedLayout);
-
-    setTimeout(() => {
-        Object.entries(widgetData).forEach(([id, text]) => {
-            addTextWidget(id, text);
-        });
-    }, 100);
+    setTimeout(hydrateWidgetText, 100);
 }
+
 
 // Save layout on change
 grid.on("change", () => {
@@ -95,4 +91,17 @@ function resetDashboard() {
     localStorage.removeItem("widgetData");
 
     widgetData = {};
+}
+
+function hydrateWidgetText() {
+    document.querySelectorAll(".widget").forEach(widget => {
+        const id = widget.dataset.id;
+        const textarea = widget.querySelector(".widget-text");
+
+        if (widgetData[id]) {
+            textarea.value = widgetData[id];
+        }
+    });
+
+    attachWidgetEvents();
 }

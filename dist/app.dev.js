@@ -1,13 +1,5 @@
 "use strict";
 
-function _slicedToArray(arr, i) { return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest(); }
-
-function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance"); }
-
-function _iterableToArrayLimit(arr, i) { if (!(Symbol.iterator in Object(arr) || Object.prototype.toString.call(arr) === "[object Arguments]")) { return; } var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"] != null) _i["return"](); } finally { if (_d) throw _e; } } return _arr; }
-
-function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
-
 var widgetData = JSON.parse(localStorage.getItem("widgetData")) || {}; // Theme
 
 document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";
@@ -28,15 +20,7 @@ var savedLayout = JSON.parse(localStorage.getItem("layout"));
 
 if (savedLayout) {
   grid.load(savedLayout);
-  setTimeout(function () {
-    Object.entries(widgetData).forEach(function (_ref) {
-      var _ref2 = _slicedToArray(_ref, 2),
-          id = _ref2[0],
-          text = _ref2[1];
-
-      addTextWidget(id, text);
-    });
-  }, 100);
+  setTimeout(hydrateWidgetText, 100);
 } // Save layout on change
 
 
@@ -88,5 +72,17 @@ function resetDashboard() {
   localStorage.removeItem("layout");
   localStorage.removeItem("widgetData");
   widgetData = {};
+}
+
+function hydrateWidgetText() {
+  document.querySelectorAll(".widget").forEach(function (widget) {
+    var id = widget.dataset.id;
+    var textarea = widget.querySelector(".widget-text");
+
+    if (widgetData[id]) {
+      textarea.value = widgetData[id];
+    }
+  });
+  attachWidgetEvents();
 }
 //# sourceMappingURL=app.dev.js.map
