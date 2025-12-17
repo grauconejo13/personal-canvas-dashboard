@@ -121,10 +121,19 @@ header h1 {
 
 .widget-text {
   width: 100%;
-  height: calc(100% - 24px);
+  flex: 1;
   background: transparent;
   border: none;
   color: inherit;
   resize: none;
   outline: none;
+  font: inherit;
+  line-height: 1.4;
+}
+
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
