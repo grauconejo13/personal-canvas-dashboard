@@ -9,8 +9,9 @@
   --bg: #ffffff;
   --surface: #f3f3f3;
   --text: #111;
-  --border: rgba(0,0,0,0.1);
+  --border: rgba(0,0,0,0.2);
 }
+
 
 [data-theme="minimal"] {
   --bg: #fafafa;
@@ -37,6 +38,10 @@ header {
 .controls button {
   margin-left: 6px;
   cursor: pointer;
+}
+
+[data-theme="light"] .grid-stack-item-content {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
 .grid-stack-item-content {
