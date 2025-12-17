@@ -27,16 +27,32 @@ grid.on("change", () => {
 
 // Add text widget
 function addTextWidget() {
+    const widgetId = `widget-${Date.now()}`;
+
     grid.addWidget({
         w: 3,
         h: 2,
         content: `
-      <div class="widget">
+      <div class="widget" data-id="${widgetId}">
+        <div class="widget-header">
+          <button class="delete-btn">✕</button>
+        </div>
         <textarea
           placeholder="Write here..."
-          style="width:100%;height:100%;background:transparent;border:none;color:inherit;resize:none;">
+          class="widget-text">
         </textarea>
       </div>
     `
+    });
+
+    attachWidgetEvents();
+}
+
+function attachWidgetEvents() {
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.onclick = (e) => {
+            const item = e.target.closest(".grid-stack-item");
+            grid.removeWidget(item);
+        };
     });
 }

@@ -27,10 +27,21 @@ grid.on("change", function () {
 }); // Add text widget
 
 function addTextWidget() {
+  var widgetId = "widget-".concat(Date.now());
   grid.addWidget({
     w: 3,
     h: 2,
-    content: "\n      <div class=\"widget\">\n        <textarea\n          placeholder=\"Write here...\"\n          style=\"width:100%;height:100%;background:transparent;border:none;color:inherit;resize:none;\">\n        </textarea>\n      </div>\n    "
+    content: "\n      <div class=\"widget\" data-id=\"".concat(widgetId, "\">\n        <div class=\"widget-header\">\n          <button class=\"delete-btn\">\u2715</button>\n        </div>\n        <textarea\n          placeholder=\"Write here...\"\n          class=\"widget-text\">\n        </textarea>\n      </div>\n    ")
+  });
+  attachWidgetEvents();
+}
+
+function attachWidgetEvents() {
+  document.querySelectorAll(".delete-btn").forEach(function (btn) {
+    btn.onclick = function (e) {
+      var item = e.target.closest(".grid-stack-item");
+      grid.removeWidget(item);
+    };
   });
 }
 //# sourceMappingURL=app.dev.js.map

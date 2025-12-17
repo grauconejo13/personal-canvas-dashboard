@@ -45,3 +45,31 @@ header {
   padding: 12px;
   border: 1px solid var(--border);
 }
+
+
+.widget-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+}
+
+.widget-text {
+  width: 100%;
+  height: calc(100% - 24px);
+  background: transparent;
+  border: none;
+  color: inherit;
+  resize: none;
+  outline: none;
+}
