@@ -1,3 +1,5 @@
+let widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
+
 // Theme
 document.documentElement.dataset.theme =
     localStorage.getItem("theme") || "dark";
@@ -15,9 +17,15 @@ const grid = GridStack.init({
 });
 
 // Load saved layout
-const saved = JSON.parse(localStorage.getItem("layout"));
-if (saved) {
-    grid.load(saved);
+const savedLayout = JSON.parse(localStorage.getItem("layout"));
+if (savedLayout) {
+    grid.load(savedLayout);
+
+    setTimeout(() => {
+        Object.entries(widgetData).forEach(([id, text]) => {
+            addTextWidget(id, text);
+        });
+    }, 100);
 }
 
 // Save layout on change
@@ -26,8 +34,8 @@ grid.on("change", () => {
 });
 
 // Add text widget
-function addTextWidget() {
-    const widgetId = `widget-${Date.now()}`;
+function addTextWidget(savedId = null, savedText = "") {
+    const widgetId = savedId || `widget-${Date.now()}`;
 
     grid.addWidget({
         w: 3,
@@ -38,9 +46,8 @@ function addTextWidget() {
           <button class="delete-btn">✕</button>
         </div>
         <textarea
-          placeholder="Write here..."
-          class="widget-text">
-        </textarea>
+          class="widget-text"
+          placeholder="Write here...">${savedText}</textarea>
       </div>
     `
     });
@@ -52,7 +59,40 @@ function attachWidgetEvents() {
     document.querySelectorAll(".delete-btn").forEach(btn => {
         btn.onclick = (e) => {
             const item = e.target.closest(".grid-stack-item");
+            const widget = e.target.closest(".widget");
+            const id = widget.dataset.id;
+
+            delete widgetData[id];
+            localStorage.setItem("widgetData", JSON.stringify(widgetData));
+
             grid.removeWidget(item);
         };
     });
+
+    attachTextPersistence();
+}
+
+function attachTextPersistence() {
+    document.querySelectorAll(".widget-text").forEach(textarea => {
+        textarea.oninput = (e) => {
+            const widget = e.target.closest(".widget");
+            const id = widget.dataset.id;
+            widgetData[id] = e.target.value;
+            localStorage.setItem("widgetData", JSON.stringify(widgetData));
+        };
+    });
+}
+
+function resetDashboard() {
+    const confirmed = confirm(
+        "This will clear all widgets and notes. Are you sure?"
+    );
+
+    if (!confirmed) return;
+
+    grid.removeAll();
+    localStorage.removeItem("layout");
+    localStorage.removeItem("widgetData");
+
+    widgetData = {};
 }
