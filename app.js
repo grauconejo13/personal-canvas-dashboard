@@ -26,7 +26,7 @@ if (savedLayout) {
 
 // Save layout on change
 grid.on("change", () => {
-    localStorage.setItem("layout", JSON.stringify(grid.save()));
+    localStorage.setItem("layout", JSON.stringify(grid.save(true)));
 });
 
 // Add text widget

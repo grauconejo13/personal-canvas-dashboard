@@ -25,7 +25,7 @@ if (savedLayout) {
 
 
 grid.on("change", function () {
-  localStorage.setItem("layout", JSON.stringify(grid.save()));
+  localStorage.setItem("layout", JSON.stringify(grid.save(true)));
 }); // Add text widget
 
 function addTextWidget() {
