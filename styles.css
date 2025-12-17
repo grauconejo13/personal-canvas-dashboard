@@ -35,9 +35,59 @@ header {
   border-bottom: 1px solid var(--border);
 }
 
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .controls button {
   margin-left: 6px;
   cursor: pointer;
+}
+
+.controls button:hover {
+  opacity: 0.85;
+}
+
+/* Primary action */
+.group.primary button {
+  font-weight: 600;
+}
+
+/* Theme buttons tighter */
+.group.themes button {
+  width: 32px;
+  padding: 0;
+}
+
+/* Destructive action */
+.group.danger button {
+  opacity: 0.6;
+}
+
+.group.danger button:hover {
+  opacity: 1;
+}
+
+[data-theme="minimal"] header {
+  opacity: 0.7;
+}
+
+[data-theme="minimal"] .controls button {
+  background: transparent;
 }
 
 [data-theme="light"] .grid-stack-item-content {

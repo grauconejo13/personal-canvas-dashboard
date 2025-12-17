@@ -16,15 +16,24 @@
 
     <header>
         <h1>Canvas</h1>
-        <div class="controls">
-            <button onclick="addTextWidget()">＋ Text</button>
-            <button onclick="setTheme('dark')">🌙</button>
-            <button onclick="setTheme('light')">☀️</button>
-            <button onclick="setTheme('minimal')">—</button>
-            <button onclick="resetDashboard()">Reset</button>
 
+        <div class="controls">
+            <div class="group primary">
+                <button onclick="addTextWidget()">＋ Add</button>
+            </div>
+
+            <div class="group themes">
+                <button onclick="setTheme('dark')" title="Dark">🌙</button>
+                <button onclick="setTheme('light')" title="Light">☀️</button>
+                <button onclick="setTheme('minimal')" title="Minimal">—</button>
+            </div>
+
+            <div class="group danger">
+                <button onclick="resetDashboard()">Reset</button>
+            </div>
         </div>
     </header>
+
 
     <main>
         <div class="grid-stack"></div>
