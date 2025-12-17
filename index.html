@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Personal Canvas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Gridstack CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@10.1.1/dist/gridstack.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+    <header>
+        <h1>Canvas</h1>
+        <div class="controls">
+            <button onclick="addTextWidget()">＋ Text</button>
+            <button onclick="setTheme('dark')">🌙</button>
+            <button onclick="setTheme('light')">☀️</button>
+            <button onclick="setTheme('minimal')">—</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="grid-stack"></div>
+    </main>
+
+    <!-- Gridstack JS -->
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@10.1.1/dist/gridstack-all.js"></script>
+    <script src="app.js"></script>
+
+</body>
+
+</html>
