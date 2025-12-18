@@ -54,7 +54,7 @@ var savedLayout = JSON.parse(localStorage.getItem("layout"));
 
 if (savedLayout) {
   grid.load(savedLayout);
-  setTimeout(hydrateWidget, 100);
+  setTimeout(hydrateWidgets, 100);
 } // Save layout on change
 
 
