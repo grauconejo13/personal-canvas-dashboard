@@ -38,8 +38,10 @@ function setTheme(theme) {
 const grid = GridStack.init({
     float: true,
     cellHeight: 120,
-    disableOneColumnMode: false
+    disableOneColumnMode: false,
+    oneColumnSize: 600
 });
+
 
 // Load saved layout
 const savedLayout = JSON.parse(localStorage.getItem("layout"));
