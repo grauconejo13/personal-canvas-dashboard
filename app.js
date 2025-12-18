@@ -1,6 +1,7 @@
 let widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
 
 const titleEl = document.getElementById("dashboard-title");
+const TITLE_LIMIT = 32;
 
 // Load saved title
 const savedTitle = localStorage.getItem("dashboardTitle");
@@ -8,11 +9,21 @@ if (savedTitle) {
     titleEl.textContent = savedTitle;
 }
 
-// Save on edit
+// Enforce limit + save
 titleEl.addEventListener("input", () => {
+    if (titleEl.textContent.length > TITLE_LIMIT) {
+        titleEl.textContent = titleEl.textContent.slice(0, TITLE_LIMIT);
+        placeCaretAtEnd(titleEl);
+    }
     localStorage.setItem("dashboardTitle", titleEl.textContent.trim());
 });
 
+// Helper to keep cursor at end
+function placeCaretAtEnd(el) {
+    el.focus();
+    document.getSelection().selectAllChildren(el);
+    document.getSelection().collapseToEnd();
+}
 
 // Theme
 document.documentElement.dataset.theme =

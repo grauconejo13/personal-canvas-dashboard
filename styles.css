@@ -42,10 +42,12 @@ header h1 {
 }
 
 #dashboard-title {
-  cursor: text;
-  padding: 4px 6px;
-  border-radius: 6px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 
 #dashboard-title:empty:before {
   content: "Your space";
