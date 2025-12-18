@@ -8,7 +8,32 @@ function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.
 
 function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
 
-var widgetData = JSON.parse(localStorage.getItem("widgetData")) || {}; // Theme
+var widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
+var titleEl = document.getElementById("dashboard-title");
+var TITLE_LIMIT = 32; // Load saved title
+
+var savedTitle = localStorage.getItem("dashboardTitle");
+
+if (savedTitle) {
+  titleEl.textContent = savedTitle;
+} // Enforce limit + save
+
+
+titleEl.addEventListener("input", function () {
+  if (titleEl.textContent.length > TITLE_LIMIT) {
+    titleEl.textContent = titleEl.textContent.slice(0, TITLE_LIMIT);
+    placeCaretAtEnd(titleEl);
+  }
+
+  localStorage.setItem("dashboardTitle", titleEl.textContent.trim());
+}); // Helper to keep cursor at end
+
+function placeCaretAtEnd(el) {
+  el.focus();
+  document.getSelection().selectAllChildren(el);
+  document.getSelection().collapseToEnd();
+} // Theme
+
 
 document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";
 
@@ -21,14 +46,15 @@ function setTheme(theme) {
 var grid = GridStack.init({
   "float": true,
   cellHeight: 120,
-  disableOneColumnMode: false
+  disableOneColumnMode: false,
+  oneColumnSize: 600
 }); // Load saved layout
 
 var savedLayout = JSON.parse(localStorage.getItem("layout"));
 
 if (savedLayout) {
   grid.load(savedLayout);
-  setTimeout(hydrateWidgetText, 100);
+  setTimeout(hydrateWidget, 100);
 } // Save layout on change
 
 
@@ -82,18 +108,6 @@ function resetDashboard() {
   widgetData = {};
 }
 
-function hydrateWidgetText() {
-  document.querySelectorAll(".widget").forEach(function (widget) {
-    var id = widget.dataset.id;
-    var textarea = widget.querySelector(".widget-text");
-
-    if (widgetData[id]) {
-      textarea.value = widgetData[id];
-    }
-  });
-  attachWidgetEvents();
-}
-
 function addChecklistWidget() {
   var savedId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
   var savedItems = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
@@ -140,5 +154,35 @@ function attachChecklistEvents() {
       save();
     };
   });
+}
+
+function hydrateWidgets() {
+  document.querySelectorAll(".widget").forEach(function (widget) {
+    var id = widget.dataset.id;
+    var type = widget.dataset.type; // TEXT WIDGET
+
+    if (!type && widgetData[id]) {
+      var textarea = widget.querySelector(".widget-text");
+      if (textarea) textarea.value = widgetData[id];
+    } // CHECKLIST WIDGET
+
+
+    if (type === "checklist" && widgetData[id]) {
+      var list = widget.querySelector(".checklist");
+      var addBtn = list.querySelector(".add-item"); // Clear existing items
+
+      list.querySelectorAll(".check-item").forEach(function (i) {
+        return i.remove();
+      });
+      widgetData[id].forEach(function (item) {
+        var row = document.createElement("label");
+        row.className = "check-item";
+        row.innerHTML = "\n          <input type=\"checkbox\" ".concat(item.checked ? "checked" : "", " />\n          <input type=\"text\" value=\"").concat(item.text, "\" />\n        ");
+        list.insertBefore(row, addBtn);
+      });
+    }
+  });
+  attachWidgetEvents();
+  attachChecklistEvents();
 }
 //# sourceMappingURL=app.dev.js.map

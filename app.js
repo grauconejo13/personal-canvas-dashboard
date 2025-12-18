@@ -47,9 +47,8 @@ const grid = GridStack.init({
 const savedLayout = JSON.parse(localStorage.getItem("layout"));
 if (savedLayout) {
     grid.load(savedLayout);
-    setTimeout(hydrateWidgetText, 100);
+    setTimeout(hydrateWidget, 100);
 }
-
 
 // Save layout on change
 grid.on("change", () => {
@@ -120,18 +119,6 @@ function resetDashboard() {
     widgetData = {};
 }
 
-function hydrateWidgetText() {
-    document.querySelectorAll(".widget").forEach(widget => {
-        const id = widget.dataset.id;
-        const textarea = widget.querySelector(".widget-text");
-
-        if (widgetData[id]) {
-            textarea.value = widgetData[id];
-        }
-    });
-
-    attachWidgetEvents();
-}
 
 function addChecklistWidget(savedId = null, savedItems = []) {
     const widgetId = savedId || `checklist-${Date.now()}`;
@@ -198,19 +185,37 @@ function attachChecklistEvents() {
     });
 }
 
-function hydrateWidgetText() {
+function hydrateWidgets() {
     document.querySelectorAll(".widget").forEach(widget => {
         const id = widget.dataset.id;
         const type = widget.dataset.type;
 
-        if (type === "checklist" && widgetData[id]) {
-            addChecklistWidget(id, widgetData[id]);
+        // TEXT WIDGET
+        if (!type && widgetData[id]) {
+            const textarea = widget.querySelector(".widget-text");
+            if (textarea) textarea.value = widgetData[id];
         }
 
-        if (!type && widgetData[id]) {
-            widget.querySelector(".widget-text").value = widgetData[id];
+        // CHECKLIST WIDGET
+        if (type === "checklist" && widgetData[id]) {
+            const list = widget.querySelector(".checklist");
+            const addBtn = list.querySelector(".add-item");
+
+            // Clear existing items
+            list.querySelectorAll(".check-item").forEach(i => i.remove());
+
+            widgetData[id].forEach(item => {
+                const row = document.createElement("label");
+                row.className = "check-item";
+                row.innerHTML = `
+          <input type="checkbox" ${item.checked ? "checked" : ""} />
+          <input type="text" value="${item.text}" />
+        `;
+                list.insertBefore(row, addBtn);
+            });
         }
     });
 
     attachWidgetEvents();
+    attachChecklistEvents();
 }
