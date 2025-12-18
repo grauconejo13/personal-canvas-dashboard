@@ -1,5 +1,13 @@
 "use strict";
 
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
+
 var widgetData = JSON.parse(localStorage.getItem("widgetData")) || {}; // Theme
 
 document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";
@@ -84,5 +92,53 @@ function hydrateWidgetText() {
     }
   });
   attachWidgetEvents();
+}
+
+function addChecklistWidget() {
+  var savedId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : null;
+  var savedItems = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+  var widgetId = savedId || "checklist-".concat(Date.now());
+  var itemsHTML = savedItems.map(function (item) {
+    return "\n      <label class=\"check-item\">\n        <input type=\"checkbox\" ".concat(item.checked ? "checked" : "", " />\n        <input type=\"text\" value=\"").concat(item.text, "\" />\n      </label>\n    ");
+  }).join("");
+  grid.addWidget({
+    w: 3,
+    h: 3,
+    content: "\n      <div class=\"widget\" data-id=\"".concat(widgetId, "\" data-type=\"checklist\">\n        <div class=\"widget-header\">\n          <button class=\"delete-btn\">\u2715</button>\n        </div>\n        <div class=\"checklist\">\n          ").concat(itemsHTML, "\n          <button class=\"add-item\">\uFF0B Add item</button>\n        </div>\n      </div>\n    ")
+  });
+  attachWidgetEvents();
+  attachChecklistEvents();
+}
+
+function attachChecklistEvents() {
+  document.querySelectorAll(".widget[data-type='checklist']").forEach(function (widget) {
+    var id = widget.dataset.id;
+
+    var save = function save() {
+      var items = _toConsumableArray(widget.querySelectorAll(".check-item")).map(function (row) {
+        return {
+          text: row.querySelector("input[type='text']").value,
+          checked: row.querySelector("input[type='checkbox']").checked
+        };
+      });
+
+      widgetData[id] = items;
+      localStorage.setItem("widgetData", JSON.stringify(widgetData));
+    };
+
+    widget.querySelectorAll("input").forEach(function (input) {
+      input.oninput = save;
+      input.onchange = save;
+    });
+
+    widget.querySelector(".add-item").onclick = function () {
+      var row = document.createElement("label");
+      row.className = "check-item";
+      row.innerHTML = "\n        <input type=\"checkbox\" />\n        <input type=\"text\" placeholder=\"List item\" />\n      ";
+      widget.querySelector(".checklist").insertBefore(row, widget.querySelector(".add-item"));
+      attachChecklistEvents();
+      save();
+    };
+  });
 }
 //# sourceMappingURL=app.dev.js.map

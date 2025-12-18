@@ -105,3 +105,85 @@ function hydrateWidgetText() {
 
     attachWidgetEvents();
 }
+
+function addChecklistWidget(savedId = null, savedItems = []) {
+    const widgetId = savedId || `checklist-${Date.now()}`;
+
+    const itemsHTML = savedItems.map(
+        item => `
+      <label class="check-item">
+        <input type="checkbox" ${item.checked ? "checked" : ""} />
+        <input type="text" value="${item.text}" />
+      </label>
+    `
+    ).join("");
+
+    grid.addWidget({
+        w: 3,
+        h: 3,
+        content: `
+      <div class="widget" data-id="${widgetId}" data-type="checklist">
+        <div class="widget-header">
+          <button class="delete-btn">✕</button>
+        </div>
+        <div class="checklist">
+          ${itemsHTML}
+          <button class="add-item">＋ Add item</button>
+        </div>
+      </div>
+    `
+    });
+
+    attachWidgetEvents();
+    attachChecklistEvents();
+}
+
+function attachChecklistEvents() {
+    document.querySelectorAll(".widget[data-type='checklist']").forEach(widget => {
+        const id = widget.dataset.id;
+
+        const save = () => {
+            const items = [...widget.querySelectorAll(".check-item")].map(row => ({
+                text: row.querySelector("input[type='text']").value,
+                checked: row.querySelector("input[type='checkbox']").checked
+            }));
+
+            widgetData[id] = items;
+            localStorage.setItem("widgetData", JSON.stringify(widgetData));
+        };
+
+        widget.querySelectorAll("input").forEach(input => {
+            input.oninput = save;
+            input.onchange = save;
+        });
+
+        widget.querySelector(".add-item").onclick = () => {
+            const row = document.createElement("label");
+            row.className = "check-item";
+            row.innerHTML = `
+        <input type="checkbox" />
+        <input type="text" placeholder="List item" />
+      `;
+            widget.querySelector(".checklist").insertBefore(row, widget.querySelector(".add-item"));
+            attachChecklistEvents();
+            save();
+        };
+    });
+}
+
+function hydrateWidgetText() {
+    document.querySelectorAll(".widget").forEach(widget => {
+        const id = widget.dataset.id;
+        const type = widget.dataset.type;
+
+        if (type === "checklist" && widgetData[id]) {
+            addChecklistWidget(id, widgetData[id]);
+        }
+
+        if (!type && widgetData[id]) {
+            widget.querySelector(".widget-text").value = widgetData[id];
+        }
+    });
+
+    attachWidgetEvents();
+}

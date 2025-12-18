@@ -173,3 +173,31 @@ header h1 {
   flex-direction: column;
   height: 100%;
 }
+
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.check-item input[type="text"] {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  outline: none;
+}
+
+.add-item {
+  margin-top: 6px;
+  align-self: flex-start;
+  font-size: 12px;
+  opacity: 0.6;
+}
