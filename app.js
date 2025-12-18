@@ -1,5 +1,19 @@
 let widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
 
+const titleEl = document.getElementById("dashboard-title");
+
+// Load saved title
+const savedTitle = localStorage.getItem("dashboardTitle");
+if (savedTitle) {
+    titleEl.textContent = savedTitle;
+}
+
+// Save on edit
+titleEl.addEventListener("input", () => {
+    localStorage.setItem("dashboardTitle", titleEl.textContent.trim());
+});
+
+
 // Theme
 document.documentElement.dataset.theme =
     localStorage.getItem("theme") || "dark";
