@@ -15,32 +15,36 @@
 <body>
 
     <header>
-        <h1 id="dashboard-title" contenteditable="true" spellcheck="false" title="Click to rename (max 32 characters)">
+        <h1
+            id="dashboard-title"
+            contenteditable="true"
+            spellcheck="false"
+            role="textbox"
+            aria-label="Dashboard title"
+            aria-multiline="false"
+            title="Click to rename (max 32 characters)">
             Canvas
         </h1>
 
-
-        <div class="controls">
-            <div class="group primary">
-                <button onclick="addTextWidget()">＋ Add</button>
-                <button onclick="addChecklistWidget()">☑︎ List</button>
-
+        <div class="controls" role="toolbar" aria-label="Dashboard controls">
+            <div class="group primary" aria-label="Add widgets">
+                <button type="button" onclick="addTextWidget()" aria-label="Add text widget">＋ Add</button>
+                <button type="button" onclick="addChecklistWidget()" aria-label="Add checklist widget">☑︎ List</button>
             </div>
 
-            <div class="group themes">
-                <button onclick="setTheme('dark')" title="Dark">🌙</button>
-                <button onclick="setTheme('light')" title="Light">☀️</button>
-                <button onclick="setTheme('minimal')" title="Minimal">—</button>
+            <div class="group themes" aria-label="Choose dashboard theme">
+                <button type="button" onclick="setTheme('dark')" title="Dark theme" aria-label="Use dark theme">🌙</button>
+                <button type="button" onclick="setTheme('light')" title="Light theme" aria-label="Use light theme">☀️</button>
+                <button type="button" onclick="setTheme('minimal')" title="Minimal theme" aria-label="Use minimal theme">—</button>
             </div>
 
             <div class="group danger">
-                <button onclick="resetDashboard()">Reset</button>
+                <button type="button" onclick="resetDashboard()" aria-label="Reset dashboard">Reset</button>
             </div>
         </div>
     </header>
 
-
-    <main>
+    <main aria-label="Personal canvas workspace">
         <div class="grid-stack"></div>
     </main>
 
