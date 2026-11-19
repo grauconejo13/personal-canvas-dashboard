@@ -219,3 +219,70 @@ function hydrateWidgets() {
     attachWidgetEvents();
     attachChecklistEvents();
 }
+
+function exportDashboard() {
+    const backup = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        dashboardTitle: localStorage.getItem("dashboardTitle") || "Canvas",
+        theme: localStorage.getItem("theme") || "dark",
+        layout: JSON.parse(localStorage.getItem("layout") || "[]"),
+        widgetData: JSON.parse(localStorage.getItem("widgetData") || "{}")
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Date().toISOString().slice(0, 10);
+
+    link.href = url;
+    link.download = `personal-canvas-backup-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
+function importDashboard(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+        try {
+            const backup = JSON.parse(reader.result);
+
+            if (
+                backup.version !== 1 ||
+                !Array.isArray(backup.layout) ||
+                typeof backup.widgetData !== "object" ||
+                backup.widgetData === null
+            ) {
+                throw new Error("Unsupported backup format");
+            }
+
+            const confirmed = confirm(
+                "Importing this backup will replace the current canvas. Continue?"
+            );
+
+            if (!confirmed) return;
+
+            localStorage.setItem(
+                "dashboardTitle",
+                String(backup.dashboardTitle || "Canvas").slice(0, TITLE_LIMIT)
+            );
+            localStorage.setItem("theme", String(backup.theme || "dark"));
+            localStorage.setItem("layout", JSON.stringify(backup.layout));
+            localStorage.setItem("widgetData", JSON.stringify(backup.widgetData));
+
+            window.location.reload();
+        } catch (error) {
+            console.error("Could not import dashboard backup", error);
+            alert("That file is not a valid Personal Canvas backup.");
+        }
+    };
+
+    reader.readAsText(file);
+}

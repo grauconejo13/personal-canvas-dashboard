@@ -38,6 +38,17 @@
                 <button type="button" onclick="setTheme('minimal')" title="Minimal theme" aria-label="Use minimal theme">—</button>
             </div>
 
+            <div class="group backup" aria-label="Backup dashboard">
+                <button type="button" onclick="exportDashboard()" aria-label="Export dashboard backup">Export</button>
+                <button type="button" onclick="document.getElementById('backup-import').click()" aria-label="Import dashboard backup">Import</button>
+                <input
+                    id="backup-import"
+                    type="file"
+                    accept="application/json,.json"
+                    hidden
+                    onchange="importDashboard(this.files[0]); this.value='';" />
+            </div>
+
             <div class="group danger">
                 <button type="button" onclick="resetDashboard()" aria-label="Reset dashboard">Reset</button>
             </div>

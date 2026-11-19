@@ -35,6 +35,11 @@ https://personal-canvas-dashboard.vercel.app/
   - No backend
   - Uses `localStorage` only
 
+- **Local backup and restore**
+  - Export the canvas as a portable JSON backup
+  - Import a backup after explicit confirmation
+  - Includes title, theme, layout, text, and checklist state
+
 - **Reset with confirmation**
   - Clear the canvas intentionally when needed
 
@@ -84,7 +89,7 @@ This is a stable MVP. Future improvements may include:
 ## ⚠️ Notes
 
 All data is stored locally in the browser.  
-Clearing browser storage or using the Reset button will remove all content.
+Clearing browser storage or using the Reset button will remove all content. Export a JSON backup first if you want a portable copy that can be restored later.
 
 ---
 
