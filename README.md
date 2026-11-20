@@ -38,6 +38,9 @@ https://personal-canvas-dashboard.vercel.app/
 - **Local backup and restore**
   - Export the canvas as a portable JSON backup
   - Import a backup after explicit confirmation
+  - Versioned schema with validation before local data is replaced
+  - Rejects oversized files and invalid layout/widget structures
+  - Falls back safely when a backup contains an unsupported theme
   - Includes title, theme, layout, text, and checklist state
 
 - **Reset with confirmation**

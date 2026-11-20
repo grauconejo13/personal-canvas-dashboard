@@ -2,6 +2,9 @@ let widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
 
 const titleEl = document.getElementById("dashboard-title");
 const TITLE_LIMIT = 32;
+const BACKUP_VERSION = 1;
+const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+const SUPPORTED_THEMES = new Set(["dark", "light", "minimal"]);
 
 // Load saved title
 const savedTitle = localStorage.getItem("dashboardTitle");
@@ -222,7 +225,7 @@ function hydrateWidgets() {
 
 function exportDashboard() {
     const backup = {
-        version: 1,
+        version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
         dashboardTitle: localStorage.getItem("dashboardTitle") || "Canvas",
         theme: localStorage.getItem("theme") || "dark",
@@ -245,23 +248,55 @@ function exportDashboard() {
     URL.revokeObjectURL(url);
 }
 
+
+function normalizeBackup(raw) {
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        throw new Error("Backup must be a JSON object");
+    }
+
+    if (raw.version !== BACKUP_VERSION) {
+        throw new Error("Unsupported backup version");
+    }
+
+    if (!Array.isArray(raw.layout)) {
+        throw new Error("Backup layout is invalid");
+    }
+
+    if (
+        typeof raw.widgetData !== "object" ||
+        raw.widgetData === null ||
+        Array.isArray(raw.widgetData)
+    ) {
+        throw new Error("Backup widget data is invalid");
+    }
+
+    const theme = SUPPORTED_THEMES.has(raw.theme) ? raw.theme : "dark";
+    const dashboardTitle = String(raw.dashboardTitle || "Canvas")
+        .trim()
+        .slice(0, TITLE_LIMIT) || "Canvas";
+
+    return {
+        version: BACKUP_VERSION,
+        dashboardTitle,
+        theme,
+        layout: raw.layout,
+        widgetData: raw.widgetData
+    };
+}
+
 function importDashboard(file) {
     if (!file) return;
+
+    if (file.size > MAX_BACKUP_BYTES) {
+        alert("That backup is too large to import safely.");
+        return;
+    }
 
     const reader = new FileReader();
 
     reader.onload = () => {
         try {
-            const backup = JSON.parse(reader.result);
-
-            if (
-                backup.version !== 1 ||
-                !Array.isArray(backup.layout) ||
-                typeof backup.widgetData !== "object" ||
-                backup.widgetData === null
-            ) {
-                throw new Error("Unsupported backup format");
-            }
+            const backup = normalizeBackup(JSON.parse(reader.result));
 
             const confirmed = confirm(
                 "Importing this backup will replace the current canvas. Continue?"
@@ -269,11 +304,8 @@ function importDashboard(file) {
 
             if (!confirmed) return;
 
-            localStorage.setItem(
-                "dashboardTitle",
-                String(backup.dashboardTitle || "Canvas").slice(0, TITLE_LIMIT)
-            );
-            localStorage.setItem("theme", String(backup.theme || "dark"));
+            localStorage.setItem("dashboardTitle", backup.dashboardTitle);
+            localStorage.setItem("theme", backup.theme);
             localStorage.setItem("layout", JSON.stringify(backup.layout));
             localStorage.setItem("widgetData", JSON.stringify(backup.widgetData));
 
