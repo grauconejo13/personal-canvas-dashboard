@@ -275,13 +275,39 @@ function normalizeBackup(raw) {
         .trim()
         .slice(0, TITLE_LIMIT) || "Canvas";
 
+    const exportedAt =
+        typeof raw.exportedAt === "string" && !Number.isNaN(Date.parse(raw.exportedAt))
+            ? raw.exportedAt
+            : null;
+
     return {
         version: BACKUP_VERSION,
+        exportedAt,
         dashboardTitle,
         theme,
         layout: raw.layout,
         widgetData: raw.widgetData
     };
+}
+
+function getBackupPreview(backup) {
+    const exportedLabel = backup.exportedAt
+        ? new Date(backup.exportedAt).toLocaleString()
+        : "Unknown";
+    const layoutCount = backup.layout.length;
+    const dataCount = Object.keys(backup.widgetData).length;
+    const widgetCount = Math.max(layoutCount, dataCount);
+
+    return [
+        "Restore this Personal Canvas backup?",
+        "",
+        `Title: ${backup.dashboardTitle}`,
+        `Theme: ${backup.theme}`,
+        `Widgets: ${widgetCount}`,
+        `Exported: ${exportedLabel}`,
+        "",
+        "Your current canvas will be replaced."
+    ].join("\n");
 }
 
 function importDashboard(file) {
@@ -298,9 +324,7 @@ function importDashboard(file) {
         try {
             const backup = normalizeBackup(JSON.parse(reader.result));
 
-            const confirmed = confirm(
-                "Importing this backup will replace the current canvas. Continue?"
-            );
+            const confirmed = confirm(getBackupPreview(backup));
 
             if (!confirmed) return;
 
