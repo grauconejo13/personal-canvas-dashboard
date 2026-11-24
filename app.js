@@ -1,18 +1,120 @@
-let widgetData = JSON.parse(localStorage.getItem("widgetData")) || {};
+// Personal Canvas: all widget content is built with DOM APIs and filled with
+// .value / .textContent. Stored or imported text is never parsed as HTML.
 
 const titleEl = document.getElementById("dashboard-title");
 const TITLE_LIMIT = 32;
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2; // v2: layout stores {id, type, x, y, w, h}, never HTML
+const SUPPORTED_BACKUP_VERSIONS = new Set([1, 2]);
 const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
 const SUPPORTED_THEMES = new Set(["dark", "light", "minimal"]);
+const WIDGET_ID_PATTERN = /^(widget|checklist)-[0-9]{1,16}(-[0-9]{1,4})?$/;
+const MAX_WIDGETS = 200;
+const MAX_TEXT_LENGTH = 100000;
+const MAX_CHECKLIST_ITEMS = 500;
+const MAX_ITEM_LENGTH = 1000;
+const GRID_COLUMNS = 12;
 
-// Load saved title
-const savedTitle = localStorage.getItem("dashboardTitle");
-if (savedTitle) {
-    titleEl.textContent = savedTitle;
+// ---------- Safe parsing helpers ----------
+
+function readJson(key, fallback) {
+    try {
+        const value = JSON.parse(localStorage.getItem(key));
+        return value === null ? fallback : value;
+    } catch {
+        return fallback;
+    }
 }
 
-// Enforce limit + save
+function clampInt(value, min, max, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+// v1 layouts (grid.save(true)) carried each widget's rendered HTML in
+// `content`. Read only data-id / data-type from it, in an inert document
+// (DOMParser never runs scripts or loads resources), and discard the HTML.
+function legacyIdentity(content) {
+    if (typeof content !== "string") return {};
+    const doc = new DOMParser().parseFromString(content, "text/html");
+    const widget = doc.querySelector(".widget");
+    if (!widget) return {};
+    return {
+        id: widget.getAttribute("data-id"),
+        type: widget.getAttribute("data-type") === "checklist" ? "checklist" : "text"
+    };
+}
+
+function sanitizeLayout(raw) {
+    if (!Array.isArray(raw)) return [];
+    const seen = new Set();
+    const layout = [];
+
+    for (const entry of raw.slice(0, MAX_WIDGETS)) {
+        if (typeof entry !== "object" || entry === null) continue;
+
+        const legacy = entry.id === undefined ? legacyIdentity(entry.content) : {};
+        const id = typeof entry.id === "string" ? entry.id : legacy.id;
+        if (typeof id !== "string" || !WIDGET_ID_PATTERN.test(id) || seen.has(id)) continue;
+
+        const type = entry.type === "checklist" || entry.type === "text"
+            ? entry.type
+            : legacy.type || (id.startsWith("checklist-") ? "checklist" : "text");
+
+        seen.add(id);
+        layout.push({
+            id,
+            type,
+            x: clampInt(entry.x, 0, GRID_COLUMNS - 1, 0),
+            y: clampInt(entry.y, 0, 10000, 0),
+            w: clampInt(entry.w, 1, GRID_COLUMNS, 3),
+            h: clampInt(entry.h, 1, 50, type === "checklist" ? 3 : 2)
+        });
+    }
+    return layout;
+}
+
+function sanitizeWidgetData(raw) {
+    const data = {};
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return data;
+
+    for (const [id, value] of Object.entries(raw)) {
+        if (!WIDGET_ID_PATTERN.test(id)) continue;
+        if (typeof value === "string") {
+            data[id] = value.slice(0, MAX_TEXT_LENGTH);
+        } else if (Array.isArray(value)) {
+            data[id] = value.slice(0, MAX_CHECKLIST_ITEMS)
+                .filter(item => typeof item === "object" && item !== null)
+                .map(item => ({
+                    text: typeof item.text === "string" ? item.text.slice(0, MAX_ITEM_LENGTH) : "",
+                    checked: item.checked === true
+                }));
+        }
+    }
+    return data;
+}
+
+// ---------- State ----------
+
+let widgetData = sanitizeWidgetData(readJson("widgetData", {}));
+let idCounter = 0;
+
+function newId(prefix) {
+    idCounter = (idCounter + 1) % 10000;
+    return `${prefix}-${Date.now()}-${idCounter}`;
+}
+
+function saveWidgetData() {
+    localStorage.setItem("widgetData", JSON.stringify(widgetData));
+}
+
+// ---------- Title ----------
+
+const savedTitle = localStorage.getItem("dashboardTitle");
+if (savedTitle) {
+    titleEl.textContent = savedTitle.slice(0, TITLE_LIMIT);
+}
+
 titleEl.addEventListener("input", () => {
     if (titleEl.textContent.length > TITLE_LIMIT) {
         titleEl.textContent = titleEl.textContent.slice(0, TITLE_LIMIT);
@@ -21,23 +123,28 @@ titleEl.addEventListener("input", () => {
     localStorage.setItem("dashboardTitle", titleEl.textContent.trim());
 });
 
-// Helper to keep cursor at end
 function placeCaretAtEnd(el) {
     el.focus();
     document.getSelection().selectAllChildren(el);
     document.getSelection().collapseToEnd();
 }
 
-// Theme
-document.documentElement.dataset.theme =
-    localStorage.getItem("theme") || "dark";
+// ---------- Theme ----------
 
-function setTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("theme", theme);
+function normalizeTheme(theme) {
+    return SUPPORTED_THEMES.has(theme) ? theme : "dark";
 }
 
-// Init Gridstack
+document.documentElement.dataset.theme = normalizeTheme(localStorage.getItem("theme"));
+
+function setTheme(theme) {
+    const safe = normalizeTheme(theme);
+    document.documentElement.dataset.theme = safe;
+    localStorage.setItem("theme", safe);
+}
+
+// ---------- Grid ----------
+
 const grid = GridStack.init({
     float: true,
     cellHeight: 120,
@@ -45,67 +152,151 @@ const grid = GridStack.init({
     oneColumnSize: 600
 });
 
+let loading = false;
 
-// Load saved layout
-const savedLayout = JSON.parse(localStorage.getItem("layout"));
-if (savedLayout) {
-    grid.load(savedLayout);
-    setTimeout(hydrateWidgets, 100);
+function serializeLayout() {
+    return grid.getGridItems().flatMap(item => {
+        const node = item.gridstackNode;
+        const widget = item.querySelector(".widget");
+        // Gridstack fires "added" before mountWidget attaches content.
+        if (!node || !widget) return [];
+        return [{
+            id: widget.dataset.id,
+            type: widget.dataset.type === "checklist" ? "checklist" : "text",
+            x: node.x,
+            y: node.y,
+            w: node.w,
+            h: node.h
+        }];
+    });
 }
 
-// Save layout on change
-grid.on("change", () => {
-    localStorage.setItem("layout", JSON.stringify(grid.save(true)));
-});
-
-// Add text widget
-function addTextWidget(savedId = null, savedText = "") {
-    const widgetId = savedId || `widget-${Date.now()}`;
-
-    grid.addWidget({
-        w: 3,
-        h: 2,
-        content: `
-      <div class="widget" data-id="${widgetId}">
-        <div class="widget-header">
-          <button class="delete-btn">✕</button>
-        </div>
-        <textarea
-          class="widget-text"
-          placeholder="Write here...">${savedText}</textarea>
-      </div>
-    `
-    });
-
-    attachWidgetEvents();
+function saveLayout() {
+    if (loading) return;
+    localStorage.setItem("layout", JSON.stringify(serializeLayout()));
 }
 
-function attachWidgetEvents() {
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.onclick = (e) => {
-            const item = e.target.closest(".grid-stack-item");
-            const widget = e.target.closest(".widget");
-            const id = widget.dataset.id;
+grid.on("change", saveLayout);
+grid.on("added", saveLayout);
+grid.on("removed", saveLayout);
 
-            delete widgetData[id];
-            localStorage.setItem("widgetData", JSON.stringify(widgetData));
+// ---------- Widget DOM ----------
 
-            grid.removeWidget(item);
-        };
+function createWidgetShell(id, type) {
+    const widget = document.createElement("div");
+    widget.className = "widget";
+    widget.dataset.id = id;
+    if (type === "checklist") widget.dataset.type = "checklist";
+
+    const header = document.createElement("div");
+    header.className = "widget-header";
+
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "delete-btn";
+    del.textContent = "✕";
+    del.setAttribute("aria-label", "Delete widget");
+    del.addEventListener("click", () => {
+        delete widgetData[id];
+        saveWidgetData();
+        grid.removeWidget(widget.closest(".grid-stack-item"));
     });
 
-    attachTextPersistence();
+    header.appendChild(del);
+    widget.appendChild(header);
+    return widget;
 }
 
-function attachTextPersistence() {
-    document.querySelectorAll(".widget-text").forEach(textarea => {
-        textarea.oninput = (e) => {
-            const widget = e.target.closest(".widget");
-            const id = widget.dataset.id;
-            widgetData[id] = e.target.value;
-            localStorage.setItem("widgetData", JSON.stringify(widgetData));
-        };
+function buildTextWidget(id, text) {
+    const widget = createWidgetShell(id, "text");
+    const textarea = document.createElement("textarea");
+    textarea.className = "widget-text";
+    textarea.placeholder = "Write here...";
+    textarea.value = typeof text === "string" ? text : "";
+    textarea.addEventListener("input", () => {
+        widgetData[id] = textarea.value.slice(0, MAX_TEXT_LENGTH);
+        saveWidgetData();
     });
+    widget.appendChild(textarea);
+    return widget;
+}
+
+function buildChecklistWidget(id, items) {
+    const widget = createWidgetShell(id, "checklist");
+    const list = document.createElement("div");
+    list.className = "checklist";
+
+    const save = () => {
+        widgetData[id] = [...list.querySelectorAll(".check-item")].map(row => ({
+            text: row.querySelector("input[type='text']").value.slice(0, MAX_ITEM_LENGTH),
+            checked: row.querySelector("input[type='checkbox']").checked
+        }));
+        saveWidgetData();
+    };
+
+    const addRow = (item, placeholder) => {
+        const row = document.createElement("label");
+        row.className = "check-item";
+
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = item.checked === true;
+
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = typeof item.text === "string" ? item.text : "";
+        if (placeholder) input.placeholder = placeholder;
+
+        box.addEventListener("change", save);
+        input.addEventListener("input", save);
+
+        row.append(box, input);
+        list.insertBefore(row, addBtn);
+    };
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-item";
+    addBtn.textContent = "＋ Add item";
+    addBtn.addEventListener("click", () => {
+        if (list.querySelectorAll(".check-item").length >= MAX_CHECKLIST_ITEMS) return;
+        addRow({ text: "", checked: false }, "List item");
+        save();
+    });
+
+    list.appendChild(addBtn);
+    (Array.isArray(items) ? items : []).forEach(item => addRow(item));
+    widget.appendChild(list);
+    return widget;
+}
+
+function mountWidget(entry) {
+    const el = grid.addWidget({
+        x: entry.x,
+        y: entry.y,
+        w: entry.w,
+        h: entry.h,
+        autoPosition: entry.x === undefined
+    });
+    const contentEl = el.querySelector(".grid-stack-item-content") || el;
+    const data = widgetData[entry.id];
+    contentEl.appendChild(
+        entry.type === "checklist"
+            ? buildChecklistWidget(entry.id, data)
+            : buildTextWidget(entry.id, data)
+    );
+    return el;
+}
+
+// Toolbar actions (called from index.html)
+function addTextWidget() {
+    mountWidget({ id: newId("widget"), type: "text", w: 3, h: 2 });
+    saveLayout();
+}
+
+function addChecklistWidget() {
+    mountWidget({ id: newId("checklist"), type: "checklist", w: 3, h: 3 });
+    saveLayout();
 }
 
 function resetDashboard() {
@@ -122,115 +313,29 @@ function resetDashboard() {
     widgetData = {};
 }
 
+// ---------- Initial load ----------
 
-function addChecklistWidget(savedId = null, savedItems = []) {
-    const widgetId = savedId || `checklist-${Date.now()}`;
+(function loadSavedLayout() {
+    const layout = sanitizeLayout(readJson("layout", []));
+    loading = true;
+    grid.batchUpdate();
+    layout.forEach(mountWidget);
+    grid.batchUpdate(false);
+    loading = false;
+    // Rewrite in the safe v2 format (drops any legacy stored HTML).
+    if (localStorage.getItem("layout") !== null) saveLayout();
+})();
 
-    const itemsHTML = savedItems.map(
-        item => `
-      <label class="check-item">
-        <input type="checkbox" ${item.checked ? "checked" : ""} />
-        <input type="text" value="${item.text}" />
-      </label>
-    `
-    ).join("");
-
-    grid.addWidget({
-        w: 3,
-        h: 3,
-        content: `
-      <div class="widget" data-id="${widgetId}" data-type="checklist">
-        <div class="widget-header">
-          <button class="delete-btn">✕</button>
-        </div>
-        <div class="checklist">
-          ${itemsHTML}
-          <button class="add-item">＋ Add item</button>
-        </div>
-      </div>
-    `
-    });
-
-    attachWidgetEvents();
-    attachChecklistEvents();
-}
-
-function attachChecklistEvents() {
-    document.querySelectorAll(".widget[data-type='checklist']").forEach(widget => {
-        const id = widget.dataset.id;
-
-        const save = () => {
-            const items = [...widget.querySelectorAll(".check-item")].map(row => ({
-                text: row.querySelector("input[type='text']").value,
-                checked: row.querySelector("input[type='checkbox']").checked
-            }));
-
-            widgetData[id] = items;
-            localStorage.setItem("widgetData", JSON.stringify(widgetData));
-        };
-
-        widget.querySelectorAll("input").forEach(input => {
-            input.oninput = save;
-            input.onchange = save;
-        });
-
-        widget.querySelector(".add-item").onclick = () => {
-            const row = document.createElement("label");
-            row.className = "check-item";
-            row.innerHTML = `
-        <input type="checkbox" />
-        <input type="text" placeholder="List item" />
-      `;
-            widget.querySelector(".checklist").insertBefore(row, widget.querySelector(".add-item"));
-            attachChecklistEvents();
-            save();
-        };
-    });
-}
-
-function hydrateWidgets() {
-    document.querySelectorAll(".widget").forEach(widget => {
-        const id = widget.dataset.id;
-        const type = widget.dataset.type;
-
-        // TEXT WIDGET
-        if (!type && widgetData[id]) {
-            const textarea = widget.querySelector(".widget-text");
-            if (textarea) textarea.value = widgetData[id];
-        }
-
-        // CHECKLIST WIDGET
-        if (type === "checklist" && widgetData[id]) {
-            const list = widget.querySelector(".checklist");
-            const addBtn = list.querySelector(".add-item");
-
-            // Clear existing items
-            list.querySelectorAll(".check-item").forEach(i => i.remove());
-
-            widgetData[id].forEach(item => {
-                const row = document.createElement("label");
-                row.className = "check-item";
-                row.innerHTML = `
-          <input type="checkbox" ${item.checked ? "checked" : ""} />
-          <input type="text" value="${item.text}" />
-        `;
-                list.insertBefore(row, addBtn);
-            });
-        }
-    });
-
-    attachWidgetEvents();
-    attachChecklistEvents();
-}
+// ---------- Backup ----------
 
 function exportDashboard() {
     const backup = {
         version: BACKUP_VERSION,
         exportedAt: new Date().toISOString(),
-        dashboardTitle: localStorage.getItem("dashboardTitle") || "Canvas",
-        theme: localStorage.getItem("theme") || "dark",
-        layout: JSON.parse(localStorage.getItem("layout") || "[]"),
-        widgetData: JSON.parse(localStorage.getItem("widgetData") || "{}")
+        dashboardTitle: (localStorage.getItem("dashboardTitle") || "Canvas").slice(0, TITLE_LIMIT),
+        theme: normalizeTheme(localStorage.getItem("theme")),
+        layout: serializeLayout(),
+        widgetData
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
@@ -248,13 +353,12 @@ function exportDashboard() {
     URL.revokeObjectURL(url);
 }
 
-
 function normalizeBackup(raw) {
     if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
         throw new Error("Backup must be a JSON object");
     }
 
-    if (raw.version !== BACKUP_VERSION) {
+    if (!SUPPORTED_BACKUP_VERSIONS.has(raw.version)) {
         throw new Error("Unsupported backup version");
     }
 
@@ -270,7 +374,16 @@ function normalizeBackup(raw) {
         throw new Error("Backup widget data is invalid");
     }
 
-    const theme = SUPPORTED_THEMES.has(raw.theme) ? raw.theme : "dark";
+    const layout = sanitizeLayout(raw.layout);
+    if (raw.layout.length > 0 && layout.length === 0) {
+        throw new Error("Backup layout has no valid widgets");
+    }
+
+    const ids = new Set(layout.map(entry => entry.id));
+    const widgetDataClean = Object.fromEntries(
+        Object.entries(sanitizeWidgetData(raw.widgetData)).filter(([id]) => ids.has(id))
+    );
+
     const dashboardTitle = String(raw.dashboardTitle || "Canvas")
         .trim()
         .slice(0, TITLE_LIMIT) || "Canvas";
@@ -284,9 +397,9 @@ function normalizeBackup(raw) {
         version: BACKUP_VERSION,
         exportedAt,
         dashboardTitle,
-        theme,
-        layout: raw.layout,
-        widgetData: raw.widgetData
+        theme: normalizeTheme(raw.theme),
+        layout,
+        widgetData: widgetDataClean
     };
 }
 
@@ -294,16 +407,13 @@ function getBackupPreview(backup) {
     const exportedLabel = backup.exportedAt
         ? new Date(backup.exportedAt).toLocaleString()
         : "Unknown";
-    const layoutCount = backup.layout.length;
-    const dataCount = Object.keys(backup.widgetData).length;
-    const widgetCount = Math.max(layoutCount, dataCount);
 
     return [
         "Restore this Personal Canvas backup?",
         "",
         `Title: ${backup.dashboardTitle}`,
         `Theme: ${backup.theme}`,
-        `Widgets: ${widgetCount}`,
+        `Widgets: ${backup.layout.length}`,
         `Exported: ${exportedLabel}`,
         "",
         "Your current canvas will be replaced."
