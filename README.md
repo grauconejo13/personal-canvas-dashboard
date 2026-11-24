@@ -70,6 +70,20 @@ This project is intentionally minimal and scoped as an MVP.
 
 ---
 
+## ▶️ Run locally
+
+No install or build step:
+
+```bash
+npx serve .        # or: python3 -m http.server 8000
+```
+
+Or just open `index.html` in a browser. Source files are `index.html`, `app.js` and `styles.css`. The `dist/` folder is an old build output that's out of date (it predates backup and restore), so don't edit it.
+
+AI coding agents: see [AGENTS.md](AGENTS.md).
+
+---
+
 ## 📱 Responsiveness
 
 - Desktop: multi-column draggable layout
