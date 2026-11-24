@@ -29,16 +29,19 @@ Before finishing, manually check in a browser: add, drag, resize and delete widg
 
 ## localStorage contract (don't break existing users' data)
 
-Keys: `dashboardTitle`, `theme` (`dark` | `light` | `minimal`), `layout` (Gridstack `save(true)` array), `widgetData` (object keyed by widget id).
+Keys: `dashboardTitle`, `theme` (`dark` | `light` | `minimal`), `layout` (array of `{id, type, x, y, w, h}`), `widgetData` (object keyed by widget id: a string for text widgets, `[{text, checked}]` for checklists).
 
 - Don't rename or reshape these keys without a migration that reads the old format.
 - Backups are versioned and validated in `app.js`. If you change the shape, bump the version and keep importing older backups.
 - Keep import size limits and validation. Never `eval` or inject backup content as HTML.
 - Never interpolate stored or imported text into HTML strings. Build elements and set `.textContent` / `.value`.
 
-## Known issue (open, needs an owner-approved fix)
+## Security notes
 
-**Imported backups can inject HTML/script.** `layout` is saved with `grid.save(true)`, which includes each widget's rendered HTML `content`. `grid.load()` renders that HTML, and `normalizeBackup()` only checks that `layout` is an array. Stored text is also interpolated into HTML (`value="${item.text}"` in `hydrateWidgets`, `${savedText}` in `addTextWidget`). A crafted backup file could run script on this origin. Risk is limited to someone importing a file they didn't make, but the README says invalid layouts are rejected. The fix (rebuild widgets from validated `{id, type, x, y, w, h}` plus `widgetData`, never stored HTML, with a backward-compatible import) changes the storage contract, so it needs owner approval.
+- Layout is stored as `{id, type, x, y, w, h}` (backup v2). **Never store or render widget HTML.** Widgets are built in `mountWidget()` with DOM APIs.
+- Imported and stored data go through `sanitizeLayout()` / `sanitizeWidgetData()`. Keep the ID pattern, size clamps and length caps.
+- v1 backups and legacy layouts still migrate via `legacyIdentity()` (inert `DOMParser`, reads only `data-id`/`data-type`). Don't remove it while old backups may exist.
+- History: fixed a backup script-injection bug in #2 (2026-11).
 
 ## Rules
 
